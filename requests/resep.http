@@ -1,0 +1,136 @@
+# requests/resep.http
+
+@apiHost = http://localhost:8080
+@apiPrefix = /api
+
+# Variabel untuk ID bahan baku yang sudah ada (GANTI DENGAN ID ASLI DARI DB ANDA!)
+@id_tepung = d653417a-6d50-4f9a-aab1-d4a8cb429fc5
+@id_gula = 44c075ed-d9cf-4c7c-8a34-e6e3e913d4b5
+@id_keju = eee8d37b-9264-4821-ab77-27fad8025bca
+@id_sosis = 219781ba-c57e-4cd0-8576-df16197baef8
+@id_kotak_pizza = a0f559fc-9185-43b7-ad05-a5f3599ceac1
+
+# Variabel untuk ID Resep yang akan dibuat/diupdate (akan diisi setelah POST request berhasil)
+@id_adonan_pizza =3f2330f3-277c-4946-a779-320ad6c15398
+@id_topping_miti =89d4914b-6f39-4db1-8a6b-8ff0c8a39a9c
+@id_pizza_mozzarella =39fa7346-2cde-4bbf-8e0e-794de7b302f3
+
+
+### GET All Reseps
+GET {{apiHost}}{{apiPrefix}}/reseps
+Content-Type: application/json
+
+### CREATE Resep: Adonan Pizza (Sub-Resep)
+POST {{apiHost}}{{apiPrefix}}/reseps
+Content-Type: application/json
+
+{
+    "nama": "Adonan Pizza",
+    "is_sub_resep": true,
+    "jumlah_porsi": 3,
+    "komponen": [
+        {
+            "komponen_id": "{{id_tepung}}",
+            "kuantitas": 180.0,
+            "tipe_komponen": "bahan_baku"
+        },
+        {
+            "komponen_id": "{{id_gula}}",
+            "kuantitas": 10.0,
+            "tipe_komponen": "bahan_baku"
+        }
+        // Tambahkan bahan baku adonan lainnya di sini
+    ]
+}
+
+### CREATE Resep: Topping Miti Mozzarella (Sub-Resep)
+POST {{apiHost}}{{apiPrefix}}/reseps
+Content-Type: application/json
+
+{
+    "nama": "Topping Miti Mozzarella",
+    "is_sub_resep": true,
+    "jumlah_porsi": 1,
+    "komponen": [
+        {
+            "komponen_id": "{{id_keju}}",
+            "kuantitas": 35.0,
+            "tipe_komponen": "bahan_baku"
+        },
+        {
+            "komponen_id": "{{id_sosis}}",
+            "kuantitas": 30.0,
+            "tipe_komponen": "bahan_baku"
+        }
+        // Tambahkan bahan baku topping lainnya di sini
+    ]
+}
+
+### CREATE Resep: Pizza Miti Mozzarella 18cm (Produk Jadi)
+# Ini akan menggunakan ID dari resep "Adonan Pizza" dan "Topping Miti Mozzarella" yang sudah dibuat
+POST {{apiHost}}{{apiPrefix}}/reseps
+Content-Type: application/json
+
+{
+    "nama": "Pizza Miti Mozzarella 18cm",
+    "is_sub_resep": false,
+    "jumlah_porsi": 1,
+    "komponen": [
+        {
+            "komponen_id": "{{id_adonan_pizza}}",
+            "kuantitas": 1.0,
+            "tipe_komponen": "resep"
+        },
+        {
+            "komponen_id": "{{id_topping_miti}}",
+            "kuantitas": 1.0,
+            "tipe_komponen": "resep"
+        },
+        {
+            "komponen_id": "{{id_kotak_pizza}}",
+            "kuantitas": 1.0,
+            "tipe_komponen": "bahan_baku"
+        }
+    ]
+}
+
+### GET Resep by ID
+# Ganti {{id_pizza_mozzarella}} dengan ID resep yang valid
+GET {{apiHost}}{{apiPrefix}}/reseps/{{id_pizza_mozzarella}}
+Content-Type: application/json
+
+### UPDATE Resep by ID
+# Ganti {{id_pizza_mozzarella}} dengan ID resep yang valid
+# Perbarui body request sesuai kebutuhan. Ini akan MENGGANTI SEMUA komponen lama.
+PUT {{apiHost}}{{apiPrefix}}/reseps/{{id_pizza_mozzarella}}
+Content-Type: application/json
+
+{
+    "nama": "Pizza Miti Mozzarella 18cm (UPDATE)",
+    "is_sub_resep": false,
+    "jumlah_porsi": 1.1,
+    "komponen": [
+        {
+            "komponen_id": "{{id_adonan_pizza}}",
+            "kuantitas": 1.0,
+            "tipe_komponen": "resep"
+        },
+        {
+            "komponen_id": "{{id_topping_miti}}",
+            "kuantitas": 1.0,
+            "tipe_komponen": "resep"
+        },
+        {
+            "komponen_id": "{{id_kotak_pizza}}",
+            "kuantitas": 1.0,
+            "tipe_komponen": "bahan_baku"
+        }
+        // Anda bisa menambah/mengurangi komponen di sini
+    ]
+}
+
+### DELETE Resep by ID
+# Ganti {{id_pizza_mozzarella}} dengan ID resep yang valid
+# Catatan: Jika resep ini digunakan sebagai komponen di resep lain, penghapusan akan gagal.
+DELETE {{apiHost}}{{apiPrefix}}/reseps/{{id_pizza_mozzarella}}
+Content-Type: application/json

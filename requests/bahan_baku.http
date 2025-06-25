@@ -1,0 +1,50 @@
+# requests/bahan_baku.http
+
+@apiHost = http://localhost:8080
+@apiPrefix = /api
+@bahanBakuId = 17aca76a-3afe-4799-a9c3-1aaf8219867c
+
+### GET All Bahan Baku
+GET {{apiHost}}{{apiPrefix}}/bahan-bakus
+Content-Type: application/json
+
+### CREATE New Bahan Baku - Tepung Terigu
+POST {{apiHost}}{{apiPrefix}}/bahan-bakus
+Content-Type: application/json
+
+{
+    "nama": "Kotak Pizza",
+    "satuan": "kg",
+    "harga_beli": 12500.00
+}
+
+### CREATE New Bahan Baku - Gula Pasir
+POST {{apiHost}}{{apiPrefix}}/bahan-bakus
+Content-Type: application/json
+
+{
+    "nama": "Gula Pasir",
+    "satuan": "kg",
+    "harga_beli": 17000.00
+}
+
+### GET Bahan Baku by ID
+GET {{apiHost}}{{apiPrefix}}/bahan-bakus/{{bahanBakuId}}
+Content-Type: application/json
+
+### UPDATE Bahan Baku by ID
+# Pastikan @bahanBakuId adalah ID bahan baku yang valid dari GET All,
+# dan "nama" tidak duplikat dengan bahan baku lain yang sudah ada.
+PUT {{apiHost}}{{apiPrefix}}/bahan-bakus/{{bahanBakuId}}
+Content-Type: application/json
+
+{
+    "nama": "Tepung Cakra Terbaru",
+    "satuan": "gram",
+    "harga_beli": 16.50
+}
+
+### DELETE Bahan Baku by ID
+# Pastikan @bahanBakuId adalah ID bahan baku yang valid dan TIDAK DIGUNAKAN di resep manapun.
+DELETE {{apiHost}}{{apiPrefix}}/bahan-bakus/{{bahanBakuId}}
+Content-Type: application/json

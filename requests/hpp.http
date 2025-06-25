@@ -1,0 +1,12 @@
+# requests/hpp.http
+
+@apiHost = http://localhost:8080
+@apiPrefix = /api
+
+# Variabel untuk ID resep yang akan dihitung HPP-nya (GANTI DENGAN ID ASLI DARI DB ANDA!)
+@id_resep_target = # Contoh: ID dari "Pizza Miti Mozzarella 18cm"
+
+### GET HPP for a specific Resep ID
+# Ganti {{id_resep_target}} dengan ID resep yang valid
+GET {{apiHost}}{{apiPrefix}}/hpp/{{id_resep_target}}
+Content-Type: application/json
