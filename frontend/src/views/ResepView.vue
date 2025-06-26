@@ -6,24 +6,27 @@ import ResepList from '../components/ResepList.vue'
 const API_BASE_URL = 'http://localhost:8080/api'
 
 // --- State Reaktif ---
-const reseps = ref([])
-const bahanBakus = ref([])
-const existingReseps = ref([])
+const reseps = ref([]) // Menyimpan daftar resep yang diambil dari backend
+const bahanBakus = ref([]) // Menyimpan daftar bahan baku untuk pilihan komponen (dropdown)
+const existingReseps = ref([]) // Menyimpan daftar resep yang sudah ada untuk pilihan komponen (dropdown)
 
-const isEditing = ref(false)
-const selectedResep = ref(null)
+const isEditing = ref(false) // State untuk menandakan apakah sedang dalam mode edit
+const selectedResep = ref(null) // Menyimpan data resep yang sedang diedit (untuk tampilan H2)
 
+// Model untuk formulir resep baru/edit
 const formModel = ref({
-  id: '', // Untuk mode edit
+  id: '', // Diisi hanya saat mode edit
   nama: '',
   is_sub_resep: false,
-  jumlah_porsi: 1,
-  komponen: [
+  jumlah_porsi: 1, // Default jumlah porsi adalah 1
+  komponen: [ // Inisialisasi dengan satu komponen kosong untuk input awal
     { komponen_id: '', kuantitas: 0, tipe_komponen: 'bahan_baku' }
   ]
 })
 
-// --- Fetch Data Awal ---
+// --- Fungsi untuk Mengambil Data dari Backend ---
+
+// Mengambil semua resep
 const fetchReseps = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/reseps`)
@@ -33,8 +36,13 @@ const fetchReseps = async () => {
     console.error('Error fetching reseps:', error)
     alert('Gagal mengambil data resep.')
   }
-}
+    }
 
+    // --- State untuk Modal Detail Resep ---
+const showDetailModal = ref(false)
+const currentDetailedResep = ref(null)
+
+// Mengambil semua bahan baku (untuk dropdown saat menambah komponen)
 const fetchBahanBakus = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/bahan-bakus`)
@@ -46,9 +54,11 @@ const fetchBahanBakus = async () => {
   }
 }
 
+// Mengambil resep yang sudah ada yang bisa menjadi komponen (sub-resep atau resep jadi)
 const fetchExistingReseps = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/reseps`)
+    // Filter resep yang sudah ada agar tidak termasuk resep yang sedang diedit (hindari self-reference)
     existingReseps.value = response.data.filter(r => r.id !== (formModel.value.id ? formModel.value.id : null));
     console.log('Resep yang sudah ada berhasil diambil:', response.data);
   } catch (error) {
@@ -57,12 +67,14 @@ const fetchExistingReseps = async () => {
   }
 }
 
-// --- Handler Form (add/update) ---
+// --- Handler untuk Form Penambahan/Update Resep ---
 const handleSubmitResep = async () => {
+  // Validasi sederhana pada komponen sebelum mengirim
   if (formModel.value.komponen.some(c => !c.komponen_id || c.kuantitas <= 0)) {
     alert('Pastikan semua komponen dipilih dan kuantitas lebih dari 0.')
     return
   }
+  // Validasi jumlah porsi
   if (formModel.value.jumlah_porsi <= 0) {
     alert('Jumlah porsi harus lebih dari 0.')
     return
@@ -70,16 +82,18 @@ const handleSubmitResep = async () => {
 
   try {
     if (isEditing.value) {
+      // Jika mode edit, kirim PUT request
       await axios.put(`${API_BASE_URL}/reseps/${formModel.value.id}`, formModel.value)
       alert('Resep berhasil diperbarui!')
     } else {
+      // Jika mode tambah, kirim POST request
       await axios.post(`${API_BASE_URL}/reseps`, formModel.value)
       alert('Resep berhasil ditambahkan!')
     }
 
-    resetForm()
-    fetchReseps()
-    fetchExistingReseps()
+    resetForm() // Reset formulir setelah berhasil
+    fetchReseps() // Muat ulang daftar resep
+    fetchExistingReseps() // Muat ulang pilihan resep yang ada
   } catch (error) {
     console.error('Error saving resep:', error.response ? error.response.data : error)
     const errorMessage = error.response && error.response.data && error.response.data.error
@@ -89,26 +103,30 @@ const handleSubmitResep = async () => {
   }
 }
 
-// --- Dynamic Komponen Management ---
+// --- Fungsi untuk Mengelola Komponen Resep Secara Dinamis di Form ---
 const addKomponen = () => {
+  // Menambahkan komponen kosong baru ke array komponen
   formModel.value.komponen.push({ komponen_id: '', kuantitas: 0, tipe_komponen: 'bahan_baku' })
 }
 
 const removeKomponen = (index) => {
+  // Menghapus komponen dari array berdasarkan indeks
   formModel.value.komponen.splice(index, 1)
 }
 
-// --- Edit/Delete Handlers dari ResepList ---
+// --- Edit/Delete Handlers yang Dipicu dari ResepList ---
 const editResep = (resep) => {
   isEditing.value = true
-  selectedResep.value = { ...resep }
+  selectedResep.value = { ...resep } // Salin objek untuk referensi di H2
+  // Isi formModel dengan data dari resep yang akan diedit (salinan objek)
   formModel.value = {
     id: resep.id,
     nama: resep.nama,
     is_sub_resep: resep.is_sub_resep,
-    jumlah_porsi: resep.jumlah_porsi || 1,
-    komponen: resep.komponen.map(c => ({ ...c }))
+    jumlah_porsi: resep.jumlah_porsi || 1, // Pastikan ada default jika null/0
+    komponen: resep.komponen.map(c => ({ ...c })) // Salin setiap objek komponen
   }
+  // Refresh pilihan resep yang ada, pastikan resep yang diedit tidak muncul sebagai komponen dirinya sendiri
   fetchExistingReseps();
 }
 
@@ -117,9 +135,9 @@ const deleteResep = async (id, nama) => {
     try {
       await axios.delete(`${API_BASE_URL}/reseps/${id}`)
       alert('Resep berhasil dihapus!')
-      fetchReseps()
-      fetchExistingReseps()
-      resetForm()
+      fetchReseps() // Muat ulang daftar resep
+      fetchExistingReseps() // Muat ulang pilihan resep yang ada
+      resetForm() // Reset form jika resep yang sedang diedit dihapus
     } catch (error) {
       console.error('Error deleting resep:', error.response ? error.response.data : error)
       const errorMessage = error.response && error.response.data && error.response.data.error
@@ -130,10 +148,48 @@ const deleteResep = async (id, nama) => {
   }
 }
 
+// Fungsi untuk membatalkan mode edit dan mereset form
 const cancelEdit = () => {
   resetForm()
+    }
+
+    // --- Fungsi untuk Menampilkan Detail Resep ---
+const showResepDetail = async (resepId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/reseps/${resepId}`)
+    currentDetailedResep.value = response.data // Data detail dari backend DTO
+    showDetailModal.value = true // Tampilkan modal
+  } catch (error) {
+    console.error('Error fetching resep detail:', error.response ? error.response.data : error)
+    alert('Gagal mengambil detail resep.')
+  }
 }
 
+// --- Fungsi untuk Menutup Modal Detail Resep ---
+const closeDetailModal = () => {
+  showDetailModal.value = false
+  currentDetailedResep.value = null
+}
+
+// --- Fungsi untuk Duplikat Resep ---
+const duplicateResep = async (resepId, resepNama) => {
+  if (confirm(`Apakah Anda yakin ingin menduplikasi resep "${resepNama}"?`)) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/reseps/${resepId}/duplicate`) // API baru untuk duplikasi
+      alert(`Resep "${resepNama}" berhasil diduplikasi menjadi "${response.data.nama_resep_baru}"!`)
+      fetchReseps() // Muat ulang daftar resep
+      fetchExistingReseps() // Muat ulang pilihan resep yang ada
+    } catch (error) {
+      console.error('Error duplicating resep:', error.response ? error.response.data : error)
+      const errorMessage = error.response && error.response.data && error.response.data.error
+                           ? error.response.data.error
+                           : 'Gagal menduplikasi resep.';
+      alert(errorMessage);
+    }
+  }
+}
+
+// Fungsi untuk mereset form ke kondisi awal (kosong atau mode tambah)
 const resetForm = () => {
   isEditing.value = false
   selectedResep.value = null
@@ -144,19 +200,23 @@ const resetForm = () => {
     jumlah_porsi: 1,
     komponen: [{ komponen_id: '', kuantitas: 0, tipe_komponen: 'bahan_baku' }]
   }
-  fetchExistingReseps();
+  fetchExistingReseps(); // Panggil ulang untuk menghapus filter dari selectedResep
 }
 
-// --- On Mounted ---
+// --- Lifecycle Hook: onMounted ---
+// Fungsi ini akan dipanggil saat komponen selesai dimuat ke DOM
 onMounted(() => {
-  fetchReseps()
-  fetchBahanBakus()
-  fetchExistingReseps()
+  fetchReseps() // Ambil daftar resep yang ada
+  fetchBahanBakus() // Ambil daftar bahan baku untuk dropdown
+  fetchExistingReseps() // Ambil daftar resep yang sudah ada untuk dropdown
 })
 
 // --- Handler Event dari Child Component ResepList (HPP Calculated) ---
+// (Opsional, untuk menerima notifikasi HPP dari ResepList jika diperlukan)
 const handleHPPCalculated = (hppResult) => {
   console.log('HPP diterima di parent (ResepView):', hppResult)
+  // Anda bisa melakukan sesuatu di sini, misalnya menyimpan hasil HPP ke state lain
+  // atau menampilkannya di bagian terpisah dari halaman ResepView.
 }
 </script>
 
@@ -180,7 +240,7 @@ const handleHPPCalculated = (hppResult) => {
         </div>
         <div class="mb-6">
           <label for="jumlahPorsi" class="block text-gray-700 text-sm font-bold mb-2">Jumlah Porsi Dihasilkan:</label>
-          <input type="number" id="jumlahPorsi" v-model.number="formModel.jumlah_porsi" min="1" step="0.01" required
+          <input type="number" id="jumlahPorsi" v-model.number="formModel.jumlah_porsi" min="1" step="0.0001" required
                  class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
         </div>
 
@@ -202,7 +262,7 @@ const handleHPPCalculated = (hppResult) => {
                     class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
               <option value="">-- Pilih --</option>
               <template v-if="komp.tipe_komponen === 'bahan_baku'">
-                <option v-for="bb in bahanBakus" :key="bb.id" :value="bb.id">{{ bb.nama }} ({{ bb.satuan }})</option>
+                <option v-for="bb in bahanBakus" :key="bb.id" :value="bb.id">{{ bb.nama }} ({{ bb.satuan_pemakaian }})</option>
               </template>
               <template v-else-if="komp.tipe_komponen === 'resep'">
                 <option v-for="r in existingReseps" :key="r.id" :value="r.id">{{ r.nama }}</option>
@@ -249,11 +309,44 @@ const handleHPPCalculated = (hppResult) => {
         @hppCalculated="handleHPPCalculated"
         @edit="editResep"
         @delete="deleteResep"
-      />
+        @showDetail="showResepDetail"    @duplicate="duplicateResep"      />
+    </div>
+
+    <div v-if="showDetailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center p-4 z-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-2xl font-bold text-gray-800">Detail Resep: {{ currentDetailedResep?.nama }}</h3>
+          <button @click="closeDetailModal" class="text-gray-500 hover:text-gray-700 text-3xl font-semibold">&times;</button>
+        </div>
+
+        <div v-if="currentDetailedResep" class="text-gray-700 text-sm">
+          <p class="mb-2"><strong>ID:</strong> {{ currentDetailedResep.id }}</p>
+          <p class="mb-2"><strong>Nama Resep:</strong> {{ currentDetailedResep.nama }}</p>
+          <p class="mb-2"><strong>Sub-Resep:</strong> {{ currentDetailedResep.is_sub_resep ? 'Ya' : 'Tidak' }}</p>
+          <p class="mb-2"><strong>Jumlah Porsi:</strong> {{ currentDetailedResep.jumlah_porsi }}</p>
+          <p class="mb-2"><strong>Dibuat:</strong> {{ currentDetailedResep.created_at }}</p>
+          <p class="mb-4"><strong>Diperbarui:</strong> {{ currentDetailedResep.updated_at }}</p>
+
+          <h4 class="text-lg font-semibold text-gray-700 mb-3">Daftar Komponen:</h4>
+          <ul class="list-disc pl-5">
+            <li v-for="(comp, idx) in currentDetailedResep.komponen" :key="idx" class="mb-1">
+              {{ comp.kuantitas }} {{ comp.tipe === 'bahan_baku' ? comp.satuan : '' }} dari <strong>{{ comp.nama }}</strong> (Tipe: {{ comp.tipe }})
+              <span v-if="comp.tipe === 'bahan_baku' && comp.harga_unit"> (Harga Unit Pakai: Rp {{ comp.harga_unit.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) }})</span>
+            </li>
+          </ul>
+        </div>
+        <div v-else class="text-center text-gray-500">Memuat detail resep...</div>
+
+        <div class="flex justify-end mt-6">
+          <button @click="closeDetailModal" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Tutup
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Hapus semua gaya scoped yang ada di sini */
+/* Tidak ada gaya scoped karena menggunakan Tailwind CSS */
 </style>

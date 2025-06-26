@@ -38,6 +38,7 @@ func main() {
 		api.GET("/reseps/:id", handlers.GetResepByID)   // <-- Tambahkan ini
 		api.PUT("/reseps/:id", handlers.UpdateResep)    // <-- Tambahkan ini
 		api.DELETE("/reseps/:id", handlers.DeleteResep) // <-- Tambahkan ini
+		api.POST("/reseps/:id/duplicate", handlers.DuplicateResep)
 
 		// Routes Perhitungan HPP
 		api.GET("/hpp/:resep_id", handlers.GetHPPForResep)

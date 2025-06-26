@@ -4,42 +4,61 @@ import axios from 'axios'
 import BahanBakuList from '../components/BahanBakuList.vue'
 
 const bahanBakus = ref([])
-// Gunakan SATU objek untuk binding form, baik itu untuk CREATE atau UPDATE
+// Menggunakan satu objek formModel untuk mode tambah dan edit
 const formModel = ref({
-  id: '', // Tambahkan ID untuk kasus update
+  id: '', // Diisi hanya saat mode edit
   nama: '',
-  satuan: '',
-  harga_beli: 0
+  kategori: '',
+  harga_beli: 0,        // Akan dikirim sebagai number, backend akan convert ke decimal
+  satuan_beli: '',
+  netto_per_beli: 0,    // Akan dikirim sebagai number, backend akan convert ke decimal
+  satuan_pemakaian: '',
+  catatan: ''
 })
 
-const isEditing = ref(false)
+const isEditing = ref(false) // State untuk menandakan apakah sedang dalam mode edit
 
 const API_BASE_URL = 'http://localhost:8080/api'
 
+// Daftar kategori yang bisa dipilih (sesuai contoh gambar Kalkuliner)
+const categories = [
+  'Bahan Kering', 'Bahan Cair', 'Bumbu', 'Kemasan',
+  'Topping', 'Pelengkap', 'Energi', 'Bahan Protein', 'Uncategorized'
+]
+
+// Fungsi untuk mengambil semua bahan baku dari backend
 const fetchBahanBakus = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/bahan-bakus`)
     bahanBakus.value = response.data
+    console.log('Bahan baku berhasil diambil:', response.data);
   } catch (error) {
     console.error('Error fetching bahan baku:', error)
     alert('Gagal mengambil data bahan baku.')
   }
 }
 
-const handleSubmit = async () => { // Fungsi ini akan menangani CREATE dan UPDATE
+// Fungsi untuk menangani submit form (tambah atau update)
+const handleSubmit = async () => {
+  // Validasi sederhana untuk harga dan netto
+  if (formModel.value.harga_beli <= 0 || formModel.value.netto_per_beli <= 0) {
+    alert('Harga Beli dan Netto harus lebih dari 0.')
+    return;
+  }
+
   try {
     if (isEditing.value) {
-      // Logic untuk UPDATE
+      // Jika mode edit, kirim PUT request
       await axios.put(`${API_BASE_URL}/bahan-bakus/${formModel.value.id}`, formModel.value)
       alert('Bahan baku berhasil diperbarui!')
     } else {
-      // Logic untuk CREATE
+      // Jika mode tambah, kirim POST request
       await axios.post(`${API_BASE_URL}/bahan-bakus`, formModel.value)
       alert('Bahan baku berhasil ditambahkan!')
     }
 
-    resetForm() // Reset form setelah berhasil
-    fetchBahanBakus() // Refresh list
+    resetForm() // Reset form setelah sukses
+    fetchBahanBakus() // Muat ulang daftar bahan baku
   } catch (error) {
     console.error('Error saving bahan baku:', error.response ? error.response.data : error)
     const errorMessage = error.response && error.response.data && error.response.data.error
@@ -49,28 +68,41 @@ const handleSubmit = async () => { // Fungsi ini akan menangani CREATE dan UPDAT
   }
 }
 
+// Fungsi untuk mengaktifkan mode edit
 const editBahanBaku = (bahanBaku) => {
   isEditing.value = true
-  // Isi formModel dengan data dari bahanBaku yang dipilih
-  formModel.value = { ...bahanBaku } // Salin objek
+  // Isi formModel dengan data dari bahan baku yang akan diedit (salinan objek)
+  formModel.value = { ...bahanBaku }
 }
 
+// Fungsi untuk membatalkan mode edit dan mereset form
 const cancelEdit = () => {
   resetForm()
 }
 
+// Fungsi untuk mereset form ke kondisi awal (kosong atau mode tambah)
 const resetForm = () => {
   isEditing.value = false
-  formModel.value = { id: '', nama: '', satuan: '', harga_beli: 0 } // Reset ke nilai awal
+  formModel.value = {
+    id: '',
+    nama: '',
+    kategori: '',
+    harga_beli: 0,
+    satuan_beli: '',
+    netto_per_beli: 0,
+    satuan_pemakaian: '',
+    catatan: ''
+  }
 }
 
+// Fungsi untuk menghapus bahan baku
 const deleteBahanBaku = async (id, nama) => {
   if (confirm(`Apakah Anda yakin ingin menghapus bahan baku "${nama}"?`)) {
     try {
       await axios.delete(`${API_BASE_URL}/bahan-bakus/${id}`)
       alert('Bahan baku berhasil dihapus!')
-      fetchBahanBakus() // Refresh list
-      resetForm() // Reset form jika bahan baku yang diedit dihapus
+      fetchBahanBakus() // Muat ulang daftar bahan baku
+      resetForm() // Reset form jika bahan baku yang sedang diedit dihapus
     } catch (error) {
       console.error('Error deleting bahan baku:', error.response ? error.response.data : error)
       const errorMessage = error.response && error.response.data && error.response.data.error
@@ -81,6 +113,7 @@ const deleteBahanBaku = async (id, nama) => {
   }
 }
 
+// Panggil fetchBahanBakus saat komponen pertama kali dimuat
 onMounted(fetchBahanBakus)
 </script>
 
@@ -98,14 +131,37 @@ onMounted(fetchBahanBakus)
                  class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
         </div>
         <div class="mb-4">
-          <label for="satuan" class="block text-gray-700 text-sm font-bold mb-2">Satuan:</label>
-          <input type="text" id="satuan" v-model="formModel.satuan" required
+          <label for="kategori" class="block text-gray-700 text-sm font-bold mb-2">Kategori:</label>
+          <select id="kategori" v-model="formModel.kategori" required
+                  class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            <option value="">-- Pilih Kategori --</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label for="harga_beli" class="block text-gray-700 text-sm font-bold mb-2">Harga Beli (per satuan beli):</label>
+          <input type="number" id="harga_beli" v-model.number="formModel.harga_beli" step="0.0001" min="0" required
+                 class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+        <div class="mb-4">
+          <label for="satuan_beli" class="block text-gray-700 text-sm font-bold mb-2">Satuan Beli:</label>
+          <input type="text" id="satuan_beli" v-model="formModel.satuan_beli" required
+                 class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+        <div class="mb-4">
+          <label for="netto_per_beli" class="block text-gray-700 text-sm font-bold mb-2">Netto (Satuan Pemakaian per Satuan Beli):</label>
+          <input type="number" id="netto_per_beli" v-model.number="formModel.netto_per_beli" step="0.0001" min="0" required
+                 class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+        <div class="mb-4">
+          <label for="satuan_pemakaian" class="block text-gray-700 text-sm font-bold mb-2">Satuan Pemakaian (di resep):</label>
+          <input type="text" id="satuan_pemakaian" v-model="formModel.satuan_pemakaian" required
                  class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
         </div>
         <div class="mb-6">
-          <label for="harga_beli" class="block text-gray-700 text-sm font-bold mb-2">Harga Beli:</label>
-          <input type="number" id="harga_beli" v-model.number="formModel.harga_beli" step="0.01" required
-                 class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+          <label for="catatan" class="block text-gray-700 text-sm font-bold mb-2">Catatan:</label>
+          <textarea id="catatan" v-model="formModel.catatan"
+                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline h-20"></textarea>
         </div>
 
         <button type="submit" v-if="!isEditing"
@@ -137,74 +193,5 @@ onMounted(fetchBahanBakus)
 </template>
 
 <style scoped>
-/* Gaya CSS Anda yang sudah ada */
-
-.bahan-baku-container {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
-  font-family: sans-serif;
-}
-
-h1, h2 {
-  color: #333;
-}
-
-.form-section, .list-section {
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-input[type="text"],
-input[type="number"] {
-  width: calc(100% - 20px);
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-button {
-  background-color: #007bff;
-  color: white;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
-
-/* Gaya baru untuk tombol edit/hapus */
-.edit-buttons button {
-  margin-right: 10px;
-  width: auto; /* Override default width */
-}
-.save-btn {
-  background-color: #28a745;
-}
-.save-btn:hover {
-  background-color: #218838;
-}
-.cancel-btn {
-  background-color: #6c757d;
-}
-.cancel-btn:hover {
-  background-color: #5a6268;
-}
+/* Tidak ada gaya scoped karena menggunakan Tailwind CSS */
 </style>
