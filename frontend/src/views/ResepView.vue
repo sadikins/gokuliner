@@ -309,7 +309,8 @@ const handleHPPCalculated = (hppResult) => {
         @hppCalculated="handleHPPCalculated"
         @edit="editResep"
         @delete="deleteResep"
-        @showDetail="showResepDetail"    @duplicate="duplicateResep"      />
+        @showDetail="showResepDetail"
+        @duplicate="duplicateResep"      />
     </div>
 
     <div v-if="showDetailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center p-4 z-50">

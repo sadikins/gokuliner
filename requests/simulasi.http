@@ -1,0 +1,20 @@
+# requests/simulasi.http
+@id_promo = 809bf20c-87a7-4ac7-a1a2-6f1414ca5a30
+
+### Simulate Promo and Commission
+POST http://localhost:8080/api/simulasi-promo
+Content-Type: application/json
+
+{
+    "harga_jual_kotor_produk": 25000.00,
+    "hpp_produk": 15000.00,
+    "nama_menu": "Pizza Meaty Mozarella 18cm",
+    "channel_menu": "GoFood",
+    "jumlah_porsi_pembelian": 1,
+    "is_promo_ongkir": true,
+    "simulated_ongkir_ditanggung_merchant": 5000.00,
+    "is_pakai_promo_channel": true,
+    "selected_promo_id": "{{id_promo}}",
+    "simulated_komisi_channel_persen": 55.00,
+    "simulated_pajak_persen": 11.00
+}

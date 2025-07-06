@@ -9,7 +9,7 @@
 @id_keju = eee8d37b-9264-4821-ab77-27fad8025bca
 @id_sosis = 219781ba-c57e-4cd0-8576-df16197baef8
 @id_kotak_pizza = a0f559fc-9185-43b7-ad05-a5f3599ceac1
-
+Pizza Meaty Mozarella 18cm
 # Variabel untuk ID Resep yang akan dibuat/diupdate (akan diisi setelah POST request berhasil)
 @id_adonan_pizza =3f2330f3-277c-4946-a779-320ad6c15398
 @id_topping_miti =89d4914b-6f39-4db1-8a6b-8ff0c8a39a9c

@@ -1,26 +1,60 @@
 package handlers
 
 import (
-	"fmt"
+	"fmt" // Diperlukan untuk math.Round
 	"net/http"
 
 	"backend_kalkuliner/database"
 	"backend_kalkuliner/models"
+	"backend_kalkuliner/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/shopspring/decimal" // <<< IMPORT INI
 	"gorm.io/gorm"
 )
 
-// Struktur input untuk membuat resep baru (Diperbarui)
+
+
+type KomponenDetailResponse struct {
+	ID        string  `json:"id"`        // ID BahanBaku atau Resep komponen
+	Nama      string  `json:"nama"`      // Nama BahanBaku atau Resep komponen
+	Kuantitas float64 `json:"kuantitas"` // Kuantitas penggunaan dalam resep ini
+	Tipe      string  `json:"tipe"`      // 'bahan_baku' atau 'resep'
+	Satuan    string  `json:"satuan,omitempty"` // Satuan Pemakaian untuk bahan baku, atau kosong untuk resep
+	HargaUnit float64 `json:"harga_unit,omitempty"` // Harga per unit pemakaian (bahan baku) atau HPP per porsi (resep)
+}
+
+// ResepDetailResponse adalah DTO untuk detail resep lengkap
+// Ini adalah respons API, bukan model database
+type ResepDetailResponse struct {
+	ID          string                  `json:"id"`
+	Nama        string                  `json:"nama"`
+	IsSubResep  bool                    `json:"is_sub_resep"`
+	JumlahPorsi float64                 `json:"jumlah_porsi"`
+	Komponen    []KomponenDetailResponse `json:"komponen"` // Menggunakan DTO KomponenDetailResponse
+	CreatedAt   string                  `json:"created_at"` // Format string untuk kemudahan frontend
+	UpdatedAt   string                  `json:"updated_at"` // Format string untuk kemudahan frontend
+}
+
+
 type CreateResepInput struct {
-	Nama        string                `json:"nama" binding:"required"`
-	IsSubResep  bool                  `json:"is_sub_resep"`
-	JumlahPorsi decimal.Decimal       `json:"jumlah_porsi"` // <<< UBAH TIPE INI
+	Nama        string  `json:"nama" binding:"required"`
+	IsSubResep  bool    `json:"is_sub_resep"`
+	JumlahPorsi float64 `json:"jumlah_porsi"`
 	Komponen    []models.ResepKomponen `json:"komponen"`
 }
 
-// CreateResep membuat resep baru beserta komponen-komponennya (Diperbarui)
+// GetReseps mengambil semua resep
+func GetReseps(c *gin.Context) {
+	var reseps []models.Resep
+	// Preload komponen agar bisa dikirim ke frontend
+	if err := database.DB.Preload("Komponen").Find(&reseps).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil resep"})
+		return
+	}
+	c.JSON(http.StatusOK, reseps)
+}
+
+// CreateResep membuat resep baru beserta komponen-komponennya
 func CreateResep(c *gin.Context) {
 	var input CreateResepInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -39,8 +73,8 @@ func CreateResep(c *gin.Context) {
 		IsSubResep: input.IsSubResep,
 		JumlahPorsi: input.JumlahPorsi,
 	}
-	if resep.JumlahPorsi.IsZero() || resep.JumlahPorsi.IsNegative() { // Validasi decimal
-		resep.JumlahPorsi = decimal.NewFromFloat(1.0)
+	if resep.JumlahPorsi <= 0 { // Validasi
+		resep.JumlahPorsi = 1.0
 	}
 
 	if err := tx.Create(&resep).Error; err != nil {
@@ -60,12 +94,13 @@ func CreateResep(c *gin.Context) {
 			return
 		}
 
-		if compInput.Kuantitas.IsZero() || compInput.Kuantitas.IsNegative() { // Validasi Kuantitas
+		if compInput.Kuantitas <= 0 { // Validasi
 			tx.Rollback()
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Kuantitas komponen harus lebih dari 0."})
 			return
 		}
 
+		// Validasi apakah komponenID benar-benar ada
 		if compInput.TipeKomponen == "bahan_baku" {
 			var bb models.BahanBaku
 			if err := tx.First(&bb, "id = ?", compInput.KomponenID).Error; err != nil {
@@ -99,134 +134,7 @@ func CreateResep(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Resep berhasil dibuat", "resep_id": resep.ID})
 }
 
-// UpdateResep memperbarui resep beserta komponen-komponennya (Diperbarui)
-func UpdateResep(c *gin.Context) {
-	id := c.Param("id")
-	var existingResep models.Resep
-	if err := database.DB.Preload("Komponen").First(&existingResep, "id = ?", id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Resep not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch resep"})
-		return
-	}
-
-	var input CreateResepInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	tx := database.DB.Begin()
-	if tx.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memulai transaksi database"})
-		return
-	}
-
-	// 1. Update data resep utama
-	existingResep.Nama = input.Nama
-	existingResep.IsSubResep = input.IsSubResep
-	existingResep.JumlahPorsi = input.JumlahPorsi // ASSIGN NILAI INI
-	if existingResep.JumlahPorsi.IsZero() || existingResep.JumlahPorsi.IsNegative() {
-		existingResep.JumlahPorsi = decimal.NewFromFloat(1.0)
-	}
-
-	if err := tx.Save(&existingResep).Error; err != nil {
-		tx.Rollback()
-		if err.Error() == "ERROR: duplicate key value violates unique constraint \"resep_nama_key\" (SQLSTATE 23505)" {
-			c.JSON(http.StatusConflict, gin.H{"error": "Nama resep sudah ada."})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui resep: " + err.Error()})
-		return
-	}
-
-	// 2. Kelola ResepKomponen: Hapus yang lama, tambahkan yang baru (Diperbarui Validasi)
-	if err := tx.Where("resep_id = ?", id).Delete(&models.ResepKomponen{}).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus komponen resep lama: " + err.Error()})
-		return
-	}
-
-	for _, compInput := range input.Komponen {
-		if compInput.TipeKomponen != "bahan_baku" && compInput.TipeKomponen != "resep" {
-			tx.Rollback()
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Tipe komponen tidak valid: " + compInput.TipeKomponen})
-			return
-		}
-
-		if compInput.Kuantitas.IsZero() || compInput.Kuantitas.IsNegative() {
-			tx.Rollback()
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Kuantitas komponen harus lebih dari 0."})
-			return
-		}
-
-		if compInput.TipeKomponen == "bahan_baku" {
-			var bb models.BahanBaku
-			if err := tx.First(&bb, "id = ?", compInput.KomponenID).Error; err != nil {
-				tx.Rollback()
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Bahan baku dengan ID " + compInput.KomponenID + " tidak ditemukan"})
-				return
-			}
-		} else { // tipe_komponen == "resep"
-			var r models.Resep
-			if err := tx.First(&r, "id = ?", compInput.KomponenID).Error; err != nil {
-				tx.Rollback()
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Resep dengan ID " + compInput.KomponenID + " tidak ditemukan"})
-				return
-			}
-		}
-
-		resepKomponen := models.ResepKomponen{
-			ResepID:      id,
-			KomponenID:   compInput.KomponenID,
-			Kuantitas:    compInput.Kuantitas,
-			TipeKomponen: compInput.TipeKomponen,
-		}
-		if err := tx.Create(&resepKomponen).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan komponen resep baru: " + err.Error()})
-			return
-		}
-	}
-
-	tx.Commit()
-	c.JSON(http.StatusOK, gin.H{"message": "Resep berhasil diperbarui", "resep_id": id})
-}
-
-// GetReseps, GetResepByID, DeleteResep (Tidak Berubah pada logika, hanya memastikan import)
-func GetReseps(c *gin.Context) {
-	var reseps []models.Resep
-	if err := database.DB.Preload("Komponen").Find(&reseps).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil resep"})
-		return
-	}
-	c.JSON(http.StatusOK, reseps)
-}
-
-// KomponenDetailResponse adalah DTO untuk detail komponen dalam resep
-type KomponenDetailResponse struct {
-	ID        string          `json:"id"`        // ID BahanBaku atau Resep komponen
-	Nama      string          `json:"nama"`      // Nama BahanBaku atau Resep komponen
-	Kuantitas decimal.Decimal `json:"kuantitas"` // Kuantitas penggunaan dalam resep ini
-	Tipe      string          `json:"tipe"`      // 'bahan_baku' atau 'resep'
-	Satuan    string          `json:"satuan,omitempty"` // Satuan Pemakaian untuk bahan baku, atau kosong untuk resep
-	HargaUnit decimal.Decimal `json:"harga_unit,omitempty"` // Harga per unit pemakaian (bahan baku) atau HPP per porsi (resep)
-}
-
-// ResepDetailResponse adalah DTO untuk detail resep lengkap
-type ResepDetailResponse struct {
-	ID          string                  `json:"id"`
-	Nama        string                  `json:"nama"`
-	IsSubResep  bool                    `json:"is_sub_resep"`
-	JumlahPorsi decimal.Decimal         `json:"jumlah_porsi"`
-	Komponen    []KomponenDetailResponse `json:"komponen"` // Menggunakan DTO KomponenDetailResponse
-	CreatedAt   string                  `json:"created_at"` // Format string untuk kemudahan frontend
-	UpdatedAt   string                  `json:"updated_at"` // Format string untuk kemudahan frontend
-}
-
-// GetResepByID mengambil satu resep berdasarkan ID (Diperbarui)
+// GetResepByID mengambil satu resep berdasarkan ID
 func GetResepByID(c *gin.Context) {
 	id := c.Param("id")
 	var resep models.Resep
@@ -262,18 +170,17 @@ func GetResepByID(c *gin.Context) {
 		if komp.TipeKomponen == "bahan_baku" {
 			var bb models.BahanBaku
 			if err := database.DB.First(&bb, "id = ?", komp.KomponenID).Error; err != nil {
-				// Handle case where bahan baku might be deleted but still referenced
 				detail.Nama = "[Bahan Baku Tidak Ditemukan]"
-				detail.Satuan = "" // Kosongkan satuan
-				detail.HargaUnit = decimal.Zero
+				detail.Satuan = ""
+				detail.HargaUnit = 0.0 // Default
 			} else {
 				detail.Nama = bb.Nama
 				detail.Satuan = bb.SatuanPemakaian
 				// Hitung harga per unit pemakaian untuk display
-				if bb.NettoPerBeli.IsZero() || bb.NettoPerBeli.IsNegative() {
-					detail.HargaUnit = decimal.Zero // Hindari pembagian nol
+				if bb.NettoPerBeli <= 0 {
+					detail.HargaUnit = 0.0
 				} else {
-					detail.HargaUnit = bb.HargaBeli.Div(bb.NettoPerBeli).Round(4) // Bulatkan untuk display
+					detail.HargaUnit = utils.RoundFloat(bb.HargaBeli / bb.NettoPerBeli, 4) // Bulatkan untuk display
 				}
 			}
 		} else if komp.TipeKomponen == "resep" {
@@ -281,14 +188,11 @@ func GetResepByID(c *gin.Context) {
 			if err := database.DB.First(&subResep, "id = ?", komp.KomponenID).Error; err != nil {
 				detail.Nama = "[Resep Tidak Ditemukan]"
 				detail.Satuan = ""
-				detail.HargaUnit = decimal.Zero
+				detail.HargaUnit = 0.0
 			} else {
 				detail.Nama = subResep.Nama
-				// Untuk resep, satuan bisa jadi porsi atau unit resep
-				detail.Satuan = fmt.Sprintf("per %s porsi", subResep.JumlahPorsi.StringFixed(0)) // Contoh
-				// Harga unit resep bisa jadi HPP per porsi atau per unit, tergantung konteks
-				// Untuk detail ini, kita hanya tampilkan namanya, HPP dihitung terpisah
-				detail.HargaUnit = decimal.Zero // Tidak relevan di sini untuk harga unit komponen
+				detail.Satuan = fmt.Sprintf("per %.0f porsi", subResep.JumlahPorsi) // Contoh
+				detail.HargaUnit = 0.0
 			}
 		}
 		resepDetail.Komponen = append(resepDetail.Komponen, detail)
@@ -297,8 +201,112 @@ func GetResepByID(c *gin.Context) {
 	c.JSON(http.StatusOK, resepDetail)
 }
 
+// UpdateResep memperbarui resep beserta komponen-komponennya
+func UpdateResep(c *gin.Context) {
+	id := c.Param("id")
+	var existingResep models.Resep
+	if err := database.DB.Preload("Komponen").First(&existingResep, "id = ?", id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Resep not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil resep"})
+		return
+	}
 
+	var input CreateResepInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
+	tx := database.DB.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memulai transaksi database"})
+		return
+	}
+
+	existingResep.Nama = input.Nama
+	existingResep.IsSubResep = input.IsSubResep
+	existingResep.JumlahPorsi = input.JumlahPorsi
+	if existingResep.JumlahPorsi <= 0 { // Validasi
+		existingResep.JumlahPorsi = 1.0
+	}
+
+	if err := tx.Save(&existingResep).Error; err != nil {
+		tx.Rollback()
+		if err.Error() == "ERROR: duplicate key value violates unique constraint \"resep_nama_key\" (SQLSTATE 23505)" {
+			c.JSON(http.StatusConflict, gin.H{"error": "Nama resep sudah ada."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui resep: " + err.Error()})
+		return
+	}
+
+	if err := tx.Where("resep_id = ?", id).Delete(&models.ResepKomponen{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus komponen resep lama: " + err.Error()})
+		return
+	}
+
+	for _, compInput := range input.Komponen {
+		if compInput.TipeKomponen != "bahan_baku" && compInput.TipeKomponen != "resep" {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Tipe komponen tidak valid: " + compInput.TipeKomponen})
+			return
+		}
+
+		if compInput.Kuantitas <= 0 { // Validasi
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Kuantitas komponen harus lebih dari 0."})
+			return
+		}
+
+		// Validasi apakah komponenID benar-benar ada
+		if compInput.TipeKomponen == "bahan_baku" {
+			var bb models.BahanBaku
+			if err := tx.First(&bb, "id = ?", compInput.KomponenID).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Bahan baku dengan ID " + compInput.KomponenID + " tidak ditemukan"})
+				return
+			}
+		} else { // tipe_komponen == "resep"
+			var r models.Resep
+			if err := tx.First(&r, "id = ?", compInput.KomponenID).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Resep dengan ID " + compInput.KomponenID + " tidak ditemukan"})
+				return
+			}
+		}
+
+		resepKomponen := models.ResepKomponen{
+			ResepID:      id,
+			KomponenID:   compInput.KomponenID,
+			Kuantitas:    compInput.Kuantitas,
+			TipeKomponen: compInput.TipeKomponen,
+		}
+		if err := tx.Create(&resepKomponen).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan komponen resep baru: " + err.Error()})
+			return
+		}
+	}
+
+	tx.Commit()
+	c.JSON(http.StatusOK, gin.H{"message": "Resep berhasil diperbarui", "resep_id": id})
+}
+
+// GetReseps mengambil semua resep (Tidak Berubah)
+// func GetReseps(c *gin.Context) {
+// 	var reseps []models.Resep
+// 	if err := database.DB.Preload("Komponen").Find(&reseps).Error; err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil resep"})
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, reseps)
+// }
+
+// DeleteResep menghapus resep beserta semua komponennya (Tidak Berubah)
 func DeleteResep(c *gin.Context) {
 	id := c.Param("id")
 
@@ -345,56 +353,52 @@ func DeleteResep(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Resep deleted successfully"})
 }
 
-
+// DuplicateResep membuat salinan dari resep yang sudah ada (Tidak Berubah)
 func DuplicateResep(c *gin.Context) {
-    resepID := c.Param("id")
+	resepID := c.Param("id")
 
-    tx := database.DB.Begin()
-    if tx.Error != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memulai transaksi database"})
-        return
-    }
+	tx := database.DB.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memulai transaksi database"})
+		return
+	}
 
-    // 1. Ambil resep asli beserta komponennya
-    var originalResep models.Resep
-    if err := tx.Preload("Komponen").First(&originalResep, "id = ?", resepID).Error; err != nil {
-        tx.Rollback()
-        if err == gorm.ErrRecordNotFound {
-            c.JSON(http.StatusNotFound, gin.H{"error": "Resep asli tidak ditemukan"})
-            return
-        }
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil resep asli: " + err.Error()})
-        return
-    }
+	var originalResep models.Resep
+	if err := tx.Preload("Komponen").First(&originalResep, "id = ?", resepID).Error; err != nil {
+		tx.Rollback()
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Resep asli tidak ditemukan"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil resep asli: " + err.Error()})
+		return
+	}
 
-    // 2. Buat objek resep baru (salinan)
-    newResep := models.Resep{
-        Nama:        originalResep.Nama + " (Copy)", // Ubah nama agar unik
-        IsSubResep:  originalResep.IsSubResep,
-        JumlahPorsi: originalResep.JumlahPorsi,
-        // ID akan otomatis digenerate oleh BeforeCreate
-    }
-    if err := tx.Create(&newResep).Error; err != nil {
-        tx.Rollback()
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat resep duplikat: " + err.Error()})
-        return
-    }
+	newResep := models.Resep{
+		Nama:        originalResep.Nama + " (Copy)",
+		IsSubResep:  originalResep.IsSubResep,
+		JumlahPorsi: originalResep.JumlahPorsi,
+	}
+	if err := tx.Create(&newResep).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuat resep duplikat: " + err.Error()})
+		return
+	}
 
-    // 3. Duplikasi komponen resep
-    for _, originalComp := range originalResep.Komponen {
-        newResepKomponen := models.ResepKomponen{
-            ResepID:      newResep.ID,         // Link ke ID resep baru
-            KomponenID:   originalComp.KomponenID,
-            Kuantitas:    originalComp.Kuantitas,
-            TipeKomponen: originalComp.TipeKomponen,
-        }
-        if err := tx.Create(&newResepKomponen).Error; err != nil {
-            tx.Rollback()
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menduplikasi komponen resep: " + err.Error()})
-            return
-        }
-    }
+	for _, originalComp := range originalResep.Komponen {
+		newResepKomponen := models.ResepKomponen{
+			ResepID:      newResep.ID,
+			KomponenID:   originalComp.KomponenID,
+			Kuantitas:    originalComp.Kuantitas,
+			TipeKomponen: originalComp.TipeKomponen,
+		}
+		if err := tx.Create(&newResepKomponen).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menduplikasi komponen resep: " + err.Error()})
+			return
+		}
+	}
 
-    tx.Commit()
-    c.JSON(http.StatusCreated, gin.H{"message": "Resep berhasil diduplikasi", "resep_id_baru": newResep.ID, "nama_resep_baru": newResep.Nama})
+	tx.Commit()
+	c.JSON(http.StatusCreated, gin.H{"message": "Resep berhasil diduplikasi", "resep_id_baru": newResep.ID, "nama_resep_baru": newResep.Nama})
 }

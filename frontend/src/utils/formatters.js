@@ -50,5 +50,14 @@ export function formatQuantity(value) {
       minute: '2-digit',
       second: '2-digit'
     });
-  };
+};
+
+
+
+/**
+ * Memformat Persentase
+ */
+export const formatPercentage = (value) => {
+  return parseFloat(value).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + '%';
+}
 

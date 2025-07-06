@@ -4,101 +4,68 @@
 @import "tailwindcss";
 
 /* Define your custom theme using the @theme directive */
-@theme {
-  /* --- Colors --- */
-  --color-primary: #009EF7;
-  --color-primary-dark: #007ACC;
-  --color-primary-light: #EBF8FF;
 
-  --color-secondary: #E4E6EF;
-  --color-secondary-dark: #ACB8C7;
-  --color-secondary-light: #F2F2F5;
-
-
-  --color-success: #50CD89;
-  --color-success-dark: #3DA56F;
-  --color-success-light: #E8FFF3;
-
-  --color-info: #7239EA;
-  --color-info-dark: #5B2AA1;
-  --color-info-light: #F8F5FF;
-
-  --color-warning: #FFC700;
-  --color-warning-dark: #CC9F00;
-  --color-warning-light: #FFF8DD;
-
-  --color-danger: #F1416C;
-  --color-danger-dark: #C13456;
-  --color-danger-light: #FFF5F8;
-
-  --color-dark: #181C32;
-  --color-dark-text: #A1A5B7;
-  --color-dark-heading: #5E6278;
-
-  --color-light: #F9F9F9;
-  --color-light-text: #7E8299;
-  --color-light-subtle: #B5B5C3;
-
-  --color-text-heading: #5E6278;
-  --color-text-body: #7E8299;
-  --color-text-muted: #A1A5B7;
-
-  --color-border: #E4E6EF;
-
-  --color-background-page: #F5F8FA;
-  --color-background-card: #FFFFFF;
-  --color-background-dark: #0d0e12;
-
-  /* --- Typography (Font Family) --- */
-  /* Define your custom font family variable here. */
-  /* You will still need to import the font itself (e.g., from Google Fonts). */
-  --font-family-sans: "Inter", "Arial", sans-serif;
-
-  /* For other typography properties like font sizes, weights, and line heights,
-     Tailwind v4.1 will likely continue to generate utility classes based on its
-     internal scale. If you need custom font sizes that don't map to Tailwind's
-     defaults (e.g., text-base, text-lg, etc.), you might use arbitrary values
-     like `text-[2.25rem]` or define custom utilities with @utility.
-     The JSON's typography section gives guidance for using utility classes. */
-
-  /* --- Spacing --- */
-  /* If Metronic's spacing closely mirrors Tailwind's defaults, you might not
-     need to explicitly define many here. If you had specific custom spacing
-     values, you'd add them as custom properties. Example: */
-  /* --spacing-128: 32rem; */
-
-
-  /* --- Border Radius --- */
-  --border-radius-default: 0.375rem;
-  --border-radius-sm: 0.25rem;
-  --border-radius-md: 0.375rem;
-  --border-radius-lg: 0.5rem;
-  --border-radius-xl: 0.75rem;
-  --border-radius-2xl: 1rem;
-  --border-radius-full: 9999px;
-
-  /* --- Box Shadow --- */
-  --box-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --box-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --box-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --box-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --box-shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --box-shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-  --box-shadow-outline: 0 0 0 3px rgba(66, 153, 225, 0.5);
-  --box-shadow-none: none;
-  --box-shadow-metronic: 0 0 50px 0 rgba(82, 63, 105, 0.15);
-
-  /* --- Breakpoints --- */
-  /* Tailwind v4.1 defines breakpoints directly in the CSS.
-     These often align with default values, but you can override them here. */
-  --screen-sm: 640px;
-  --screen-md: 768px;
-  --screen-lg: 1024px;
-  --screen-xl: 1280px;
-  --screen-2xl: 1536px;
+body {
+   font-family: 'Inter', sans-serif !important;
+   background-color: #f8fafc; /* gray-50 */
+}
+/* Custom scrollbar style */
+::-webkit-scrollbar {
+   width: 8px;
+}
+::-webkit-scrollbar-track {
+   background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+   background: #cbd5e1;
+   border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+   background: #94a3b8;
 }
 
-/* You still need to ensure your "Inter" font is loaded, e.g., in your HTML */
-/*
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-*/
+/* Style untuk input yang dinonaktifkan */
+input:disabled {
+   background-color: #e5e7eb; /* gray-200 */
+   cursor: not-allowed;
+   opacity: 0.7;
+}
+/* Style untuk Modal Edit */
+.modal {
+   display: none; /* Hidden by default */
+   position: fixed;
+   z-index: 100;
+   left: 0;
+   top: 0;
+   width: 100%;
+   height: 100%;
+   overflow: auto;
+   background-color: rgba(0,0,0,0.4);
+   animation: fadeIn 0.3s;
+}
+
+.modal-content {
+   background-color: #fefefe;
+   margin: 8% auto;
+   padding: 2rem;
+   border: 1px solid #888;
+   width: 90%;
+   max-width: 500px;
+   border-radius: 0.75rem;
+   position: relative;
+}
+
+.modal-close {
+   color: #aaa;
+   position: absolute;
+   top: 0.75rem;
+   right: 1.25rem;
+   font-size: 28px;
+   font-weight: bold;
+   cursor: pointer;
+}
+.modal-close:hover,
+.modal-close:focus {
+   color: black;
+   text-decoration: none;
+}

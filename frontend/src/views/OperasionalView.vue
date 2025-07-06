@@ -1,15 +1,16 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
-  import BahanBakuList from '../components/List/BahanBakuList.vue'
+import TenagaKerjaList from '../components/List/TenagaKerjaList.vue';
+import OperasionalList from '../components/List/OperasionalList.vue';
 import InputText from '../components/InputText.vue';
 
-const bahanBakus = ref([])
+const allCostItems = ref([])
 // Menggunakan satu objek formModel untuk mode tambah dan edit
 const formModel = ref({
   id: '', // Diisi hanya saat mode edit
   nama: '',
-  kategori: '',
+  kategori: 'Operasional',
   harga_beli: 0,        // Akan dikirim sebagai number, backend akan convert ke decimal
   satuan_beli: '',
   netto_per_beli: 0,    // Akan dikirim sebagai number, backend akan convert ke decimal
@@ -23,19 +24,19 @@ const API_BASE_URL = 'http://localhost:8080/api'
 
 // Daftar kategori yang bisa dipilih (sesuai contoh gambar Kalkuliner)
 const categories = [
-  'Bahan Baku', 'Kemasan',
-  ]
+  'Bahan Kering', 'Bahan Cair', 'Bumbu', 'Kemasan',
+  'Topping', 'Pelengkap', 'Energi', 'Bahan Protein', 'Uncategorized'
+    ]
 
-
-  const filteredCostItems = computed(() => {
-  return bahanBakus.value.filter(item => item.kategori === 'Bahan Baku' || item.kategori === 'Kemasan');
+const filteredCostItems = computed(() => {
+  return allCostItems.value.filter(item => item.kategori === 'Operasional');
 });
 
 // Fungsi untuk mengambil semua bahan baku dari backend
 const fetchBahanBakus = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/bahan-bakus`)
-    bahanBakus.value = response.data
+    allCostItems.value = response.data
     console.log('Bahan baku berhasil diambil:', response.data);
   } catch (error) {
     console.error('Error fetching bahan baku:', error)
@@ -91,7 +92,7 @@ const resetForm = () => {
   formModel.value = {
     id: '',
     nama: '',
-    kategori: '',
+    kategori: 'Operasional',
     harga_beli: 0,
     satuan_beli: '',
     netto_per_beli: 0,
@@ -124,18 +125,15 @@ onMounted(fetchBahanBakus)
 
 <template>
   <div class="">
-    <h2 class="text-3xl font-bold mb-6">Manajemen Bahan Baku</h2>
+    <h2 class="text-3xl font-bold mb-6">Manajemen Operasional</h2>
 
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200 h-full flex flex-col">
-        <h3 class="text-xl font-semibold mb-4">
-          Daftar Bahan Baku
-
-        </h3>
+        <h3 class="text-xl font-semibold mb-4">Daftar Operasional</h3>
         <div class="flex-grow">
-          <BahanBakuList
-            :bahanBakus="filteredCostItems"
+          <OperasionalList
+            :operasionals="filteredCostItems"
             @edit="editBahanBaku"
             @delete="deleteBahanBaku"
           />
@@ -143,30 +141,30 @@ onMounted(fetchBahanBakus)
       </div>
 
       <div class="lg:col-span-1 bg-white rounded-xl p-6 border border-gray-200">
-        <h2 class="text-2xl font-semibold text-gray-700 mb-5" v-if="!isEditing">Tambah Bahan Baku Baru</h2>
-        <h2 class="text-2xl font-semibold text-gray-700 mb-5" v-else>Edit Bahan Baku</h2>
+        <h2 class="text-2xl font-semibold text-gray-700 mb-5" v-if="!isEditing">Tambah Operasional</h2>
+        <h2 class="text-2xl font-semibold text-gray-700 mb-5" v-else>Edit Operasional</h2>
         <form @submit.prevent="handleSubmit()">
           <div class="mb-4">
-            <label for="nama" class="block mb-1 text-sm font-medium text-gray-700">Nama Bahan:</label>
-            <InputText  id="nama" v-model="formModel.nama" placeholder="Contoh: Tepung Terigu" required/>
+            <label for="nama" class="block mb-1 text-sm font-medium text-gray-700">Nama Kegiatan:</label>
+            <InputText  id="nama" v-model="formModel.nama" placeholder="Contoh: Gas 12kg" required/>
           </div>
-          <div class="mb-4">
+          <!-- <div class="mb-4">
             <label for="kategori" class="block mb-1 text-sm font-medium text-gray-700">Kategori:</label>
             <select id="kategori" v-model="formModel.kategori" required
                     class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5">
               <option value="">-- Pilih Kategori --</option>
               <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
             </select>
-          </div>
+          </div> -->
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label for="harga_beli" class="block mb-1 text-sm font-medium text-gray-700">Harga Beli (Rp):</label>
+              <label for="harga_beli" class="block mb-1 text-sm font-medium text-gray-700">Bayaran (Rp):</label>
               <InputText type="number" id="harga_beli" v-model.number="formModel.harga_beli" min="0" step="0.01" required
                     />
             </div>
             <div>
-              <label for="satuan_beli" class="block mb-1 text-sm font-medium text-gray-700">Satuan Beli:</label>
-            <InputText type="text" id="satuan_beli" v-model="formModel.satuan_beli" placeholder="Contoh: Kilogram" required
+              <label for="satuan_beli" class="block mb-1 text-sm font-medium text-gray-700">Satuan Pembayaran:</label>
+            <InputText type="text" id="satuan_beli" v-model="formModel.satuan_beli" placeholder="Contoh: Tabung" required
                   /> </div>
           </div>
           <div class="mb-4">
@@ -176,13 +174,13 @@ onMounted(fetchBahanBakus)
             <h3 class="text-base font-medium text-gray-700 mb-2">Konversi Satuan</h3>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label for="netto_per_beli" class="block mb-1 text-sm font-medium text-gray-700">Netto:</label>
+                    <label for="netto_per_beli" class="block mb-1 text-sm font-medium text-gray-700">Pemakaian:</label>
                     <InputText type="number" id="netto_per_beli" v-model.number="formModel.netto_per_beli" min="0" step="0.0001" required
                            />
                 </div>
                 <div>
-                    <label for="satuan_pemakaian" class="block mb-1 text-sm font-medium text-gray-700">Satuan Pakai:</label>
-                    <InputText type="text" id="satuan_pemakaian" v-model="formModel.satuan_pemakaian" placeholder="Contoh: Gram" required
+                    <label for="satuan_pemakaian" class="block mb-1 text-sm font-medium text-gray-700">Satuan:</label>
+                    <InputText type="text" id="satuan_pemakaian" v-model="formModel.satuan_pemakaian" placeholder="Contoh: Menit" required
                            />
                 </div>
             </div>
@@ -190,7 +188,7 @@ onMounted(fetchBahanBakus)
 
           <div class="mb-1">
             <label for="catatan" class="block text-sm font-medium text-lime-900">Catatan:</label>
-            <textarea id="catatan" v-model="formModel.catatan"  placeholder="Catatan tambahan tentang bahan baku ini"
+            <textarea id="catatan" v-model="formModel.catatan"  placeholder="Catatan tambahan tentang tenaga kerja ini"
                       class="bg-lime-100 p-3 rounded-lg w-full text-lime-900 placeholder:text-lime-800/50 placeholder:text-sm"></textarea>
           </div>
 

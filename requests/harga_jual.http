@@ -1,0 +1,115 @@
+# requests/harga_jual.http
+
+@apiHost = http://localhost:8080
+@apiPrefix = /api
+
+# --- GANTI DENGAN ID AKTUAL DARI DATABASE ANDA ---
+@id_resep_contoh = e55d16b5-e56c-4e18-be40-5d9e0f8340cf
+@id_harga_jual_untuk_update_delete =
+# ---------------------------------------------------
+
+
+### GET All Harga Jual
+GET {{apiHost}}{{apiPrefix}}/harga-juals
+Content-Type: application/json
+
+
+### CREATE Harga Jual - Kriteria: Profit Minimal (% dari Net Sales)
+# Ini akan menghitung Harga Jual Kotor berdasarkan HPP, Profit%, Pajak%, Komisi%
+# dan menyimpannya sebagai MetodePerhitungan: "min_profit_net_sales_persen"
+POST {{apiHost}}{{apiPrefix}}/harga-juals/calculate
+Content-Type: application/json
+
+{
+    "resep_id": "{{id_resep_contoh}}",
+    "nama_produk": "Adonan Pizza",
+    "channel": "GoFood",
+    "jumlah_porsi_produk": 1.0,
+    "pajak_persen": 11.0,
+    "komisi_channel_persen": 20.0,
+    "harga_bulat": true,
+
+    "selectedCriteria": "min_profit_net_sales_persen",
+    "min_profit_net_sales_persen": 15.0, // Saya ingin keuntungan saya minimal 15% dari net sales
+
+    // Kriteria lain harus null jika tidak dipilih
+    "min_profit_rp_hpp": null,
+    "min_profit_persen_hpp": null,
+    "min_profit_x_lipat_hpp": null,
+    "max_hpp_net_sales_persen": null,
+    "target_net_sales_x_lipat_hpp": null,
+    "target_net_sales_rp": null,
+    "target_harga_jual_rp": null,
+    "consumer_pays_including_tax_rp": null,
+    "target_harga_jual_excl_tax_rp": null
+}
+
+
+### CREATE Harga Jual - Kriteria: Harga Jual Langsung (Rp)
+# Ini akan menyimpan Harga Jual Kotor yang Anda tentukan langsung
+POST {{apiHost}}{{apiPrefix}}/harga-juals/calculate
+Content-Type: application/json
+
+{
+    "resep_id": "{{id_resep_contoh}}",
+    "nama_produk": "Ayam Bakar Madu",
+    "channel": "Internal",
+    "jumlah_porsi_produk": 1.0,
+    "pajak_persen": 0.0,
+    "komisi_channel_persen": 0.0,
+    "harga_bulat": false,
+
+    "selectedCriteria": "target_harga_jual_rp",
+    "target_harga_jual_rp": 25000.00, // Saya ingin harga jual menu ini Rp 25.000
+
+    // Kriteria lain harus null
+    "min_profit_net_sales_persen": null,
+    "min_profit_rp_hpp": null,
+    "min_profit_persen_hpp": null,
+    "min_profit_x_lipat_hpp": null,
+    "max_hpp_net_sales_persen": null,
+    "target_net_sales_x_lipat_hpp": null,
+    "target_net_sales_rp": null,
+    "consumer_pays_including_tax_rp": null,
+    "target_harga_jual_excl_tax_rp": null
+}
+
+
+### GET Harga Jual by ID
+GET {{apiHost}}{{apiPrefix}}/harga-juals/{{id_harga_jual_untuk_update_delete}}
+Content-Type: application/json
+
+
+### UPDATE Harga Jual - Ubah Kriteria ke HPP Maksimal (% Net Sales)
+# Pastikan @id_harga_jual_untuk_update_delete adalah ID harga jual yang valid.
+PUT {{apiHost}}{{apiPrefix}}/harga-juals/{{id_harga_jual_untuk_update_delete}}
+Content-Type: application/json
+
+{
+    "resep_id": "{{id_resep_contoh}}",
+    "nama_produk": "Ayam + Nasi + S (Updated)",
+    "channel": "GoFood",
+    "jumlah_porsi_produk": 1.0,
+    "pajak_persen": 11.0,
+    "komisi_channel_persen": 18.0,
+    "harga_bulat": true,
+
+    "selectedCriteria": "max_hpp_net_sales_persen",
+    "max_hpp_net_sales_persen": 50.0, // Saya ingin HPP saya maksimal 50% dari net sales
+
+    // Kriteria lain harus null
+    "min_profit_net_sales_persen": null,
+    "min_profit_rp_hpp": null,
+    "min_profit_persen_hpp": null,
+    "min_profit_x_lipat_hpp": null,
+    "target_net_sales_x_lipat_hpp": null,
+    "target_net_sales_rp": null,
+    "target_harga_jual_rp": null,
+    "consumer_pays_including_tax_rp": null,
+    "target_harga_jual_excl_tax_rp": null
+}
+
+
+### DELETE Harga Jual by ID
+DELETE {{apiHost}}{{apiPrefix}}/harga-juals/{{id_harga_jual_untuk_update_delete}}
+Content-Type: application/json

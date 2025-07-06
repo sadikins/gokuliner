@@ -1,27 +1,23 @@
-<!-- src/App.vue -->
+<script setup>
+
+
+  import NavbarComponent from './components/NavbarComponent.vue';
+
+
+
+</script>
+
 <template>
-  <div id="app">
-    <template v-if="$route.meta.requiresAuth">
+  <div class="flex h-screen">
+    <!-- Navbar Aside -->
+    <NavbarComponent />
 
-        <router-view />
-
-    </template>
-    <template v-else>
+    <!-- Main Contents -->
+    <main class="flex-1 p-8 overflow-y-auto">
       <router-view />
-    </template>
+    </main>
+
   </div>
 </template>
 
-<script>
 
-export default {
-  name: 'App',
-  components: {
-  },
-};
-</script>
-
-<style>
-/* Global styles for App.vue or import main.css here */
-/* Pastikan main.css sudah diimport di main.js */
-</style>

@@ -18,8 +18,7 @@ func CreateBahanBaku(c *gin.Context) {
 		return
 	}
 
-	// Validasi tambahan untuk field baru (menggunakan metode decimal)
-	if input.HargaBeli.IsZero() || input.HargaBeli.IsNegative() || input.NettoPerBeli.IsZero() || input.NettoPerBeli.IsNegative() {
+	if input.HargaBeli <= 0 || input.NettoPerBeli <= 0 { // <<< UBAH VALIDASI
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Harga beli dan netto per beli harus lebih dari 0."})
 		return
 	}
@@ -34,6 +33,7 @@ func CreateBahanBaku(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, input)
 }
+
 
 // UpdateBahanBaku (Diperbarui)
 func UpdateBahanBaku(c *gin.Context) {
@@ -54,8 +54,7 @@ func UpdateBahanBaku(c *gin.Context) {
 		return
 	}
 
-	// Validasi tambahan untuk field baru
-	if input.HargaBeli.IsZero() || input.HargaBeli.IsNegative() || input.NettoPerBeli.IsZero() || input.NettoPerBeli.IsNegative() {
+	if input.HargaBeli <= 0 || input.NettoPerBeli <= 0 { // <<< UBAH VALIDASI
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Harga beli dan netto per beli harus lebih dari 0."})
 		return
 	}
@@ -82,7 +81,17 @@ func UpdateBahanBaku(c *gin.Context) {
 // GetBahanBakus, GetBahanBakuByID, DeleteBahanBaku (Tidak Berubah pada logika, hanya memastikan import)
 func GetBahanBakus(c *gin.Context) {
 	var bahanBakus []models.BahanBaku
-	if err := database.DB.Find(&bahanBakus).Error; err != nil {
+
+	sortBy := c.DefaultQuery("sort_by", "nama")
+	sortOrder := c.DefaultQuery("order", "asc")
+
+	if sortOrder != "asc" && sortOrder != "desc" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid sort order. Use 'acs' or 'desc'."})
+	}
+
+	orderByClause := sortBy +" "+ sortOrder
+
+	if err := database.DB.Order(orderByClause).Find(&bahanBakus).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bahan baku"})
 		return
 	}
